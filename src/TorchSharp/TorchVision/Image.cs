@@ -48,7 +48,8 @@ namespace TorchSharp.torchvision
 
         public static void write_image(Tensor image, string filename, ImageFormat format, IImager imager = null)
         {
-            File.WriteAllBytes(filename, (imager ?? DefaultImager).EncodeImage(image, format));
+            var data = (imager ?? DefaultImager).EncodeImage(image, format);
+            File.WriteAllBytes(filename, data);
         }
 
         public static Tensor encode_image(Tensor image, IImager imager = null)

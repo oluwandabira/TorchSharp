@@ -38,7 +38,7 @@ namespace TorchSharp.torchvision
 
                 image.CopyPixelDataTo(imageBytes);
 
-                return tensor(imageBytes, new long[] { image.Width, image.Height, channels}).permute(2, 0, 1);
+                return tensor(imageBytes, new long[] { image.Width, image.Height, channels }).permute(2, 0, 1);
             }
 
             byte[] FromTensor<TPixel>(Tensor t, ImageFormat format) where TPixel : unmanaged, IPixel<TPixel>
