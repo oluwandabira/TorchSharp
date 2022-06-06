@@ -5,6 +5,9 @@ using System.Linq;
 using System.IO;
 using SkiaSharp;
 using static TorchSharp.torch;
+using TorchSharp.torchvision;
+using static TorchSharp.torchvision.io;
+
 using System.Runtime.InteropServices;
 
 namespace TorchSharp.Examples
@@ -17,9 +20,12 @@ namespace TorchSharp.Examples
                 //
                 // Find some PNG (or JPEG, etc.) files, download them, and then put their file paths here.
                 //
+                @"C:\Users\niklasg\Downloads\desert.jpg",
+                @"C:\Users\niklasg\Downloads\waterfall.jpg",
+                @"C:\Users\niklasg\Downloads\wintersky.jpg",
             };
 
-            const string outputPathPrefix = /* Add the very first part of your repo path here. */ @"\TorchSharp\output-";
+            const string outputPathPrefix = /* Add the very first part of your repo path here. */ @"d:\repos\niklasgustafsson" + @"\TorchSharp\output-";
             var tensors = LoadImages(images, 4, 3, 256, 256);
 
             var first = tensors[0];
@@ -96,67 +102,112 @@ namespace TorchSharp.Examples
                     var lblStart = idx * (1 + imgSize);
                     var imgStart = lblStart + 1;
 
-                    using (var stream = new SKManagedStream(File.OpenRead(images[idx])))
-                    using (var bitmap = SKBitmap.Decode(stream)) {
-                        using (var inputTensor = torch.tensor(GetBytesWithoutAlpha(bitmap))) {
+                    var buffer = File.ReadAllBytes(images[idx]);
 
-                            Tensor finalized = inputTensor;
+                    using (var inputTensor = DecodeImage(buffer, ImageReadMode.RGB)) {
 
-                            var nz = inputTensor.count_nonzero().item<long>();
+                        Tensor finalized = inputTensor;
 
-                            if (bitmap.Width != width || bitmap.Height != height) {
-                                var t = inputTensor.reshape(1, channels, bitmap.Height, bitmap.Width);
-                                finalized = torchvision.transforms.functional.resize(t, height, width).reshape(imgSize);
-                            }
-
-                            dataTensor.index_put_(finalized, TensorIndex.Single(j));
+                        if (inputTensor.shape[2] != width || inputTensor.shape[1] != height) {
+                            finalized = torchvision.transforms.functional.resize(finalized, height, width).reshape(imgSize);
+                        } else {
+                            finalized = finalized.alias();
                         }
+
+                        dataTensor.index_put_(finalized, TensorIndex.Single(j));
                     }
                 }
 
                 tensors.Add(dataTensor.reshape(take, channels, height, width));
+
                 dataTensor.Dispose();
             }
 
             return tensors;
         }
 
-        private static byte[] GetBytesWithoutAlpha(SKBitmap bitmap)
+        private static Tensor DecodeImage(byte[] buffer, ImageReadMode mode = ImageReadMode.UNCHANGED)
+        {
+            using var scope = NewDisposeScope();
+
+            using var bitmap = SKBitmap.Decode(buffer);
+
+            var result = torch.tensor(bitmap.Bytes).reshape(bitmap.Height, bitmap.Width, - 1).permute(2, 0, 1);
+
+            if (mode == ImageReadMode.UNCHANGED)
+                return result.DetatchFromDisposeScope();
+
+            var channels = result.shape[0];
+
+            switch (mode) {
+
+            case ImageReadMode.RGB_ALPHA:
+                return torch.tensor(GetBytes(bitmap, mode, false));
+            case ImageReadMode.RGB:
+                if (channels == 4) {
+                    result = result[(0, 3)];
+                } else if (channels == 1) {
+                    result = torch.row_stack(new Tensor[] { result, result, result });
+                }
+                break;
+            case ImageReadMode.GRAY:
+                if (channels == 4) {
+                    result = torchvision.transforms.functional.rgb_to_grayscale(result[(1, 3)], 1);
+                }
+                else if (channels == 3) {
+                    result = torchvision.transforms.functional.rgb_to_grayscale(result, 1);
+                }
+                break;
+            default: throw new NotImplementedException();
+            }
+
+            return result.DetatchFromDisposeScope();
+        }
+
+        private static byte[] GetBytes(SKBitmap bitmap, ImageReadMode mode, bool skipAlpha = true)
         {
             var height = bitmap.Height;
             var width = bitmap.Width;
 
             var inputBytes = bitmap.Bytes;
 
-            if (bitmap.ColorType == SKColorType.Gray8)
+            if (bitmap.ColorType == SKColorType.Gray8 && mode == ImageReadMode.GRAY)
                 return inputBytes;
 
             if (bitmap.BytesPerPixel != 4 && bitmap.BytesPerPixel != 1)
                 throw new ArgumentException("Conversion only supports grayscale and ARGB");
 
-            var channelLength = height * width;
+            var iamgeSize = height * width;
 
-            var channelCount = 3;
+            var channelCount = skipAlpha ? 3 : 4;
 
-            int inputBlue = 0, inputGreen = 0, inputRed = 0;
-            int outputRed = 0, outputGreen = channelLength, outputBlue = channelLength * 2;
+            int inputBlue = 0, inputGreen = 0, inputRed = 0, inputAlpha = 0;
+            int outputRed = 0, outputGreen = iamgeSize, outputBlue = iamgeSize * 2, outputAlpha = iamgeSize * 3;
 
             switch (bitmap.ColorType) {
             case SKColorType.Bgra8888:
                 inputBlue = 0;
                 inputGreen = 1;
                 inputRed = 2;
+                inputAlpha = 3;
                 break;
-
+            case SKColorType.Gray8:
+                inputBlue = 0;
+                inputGreen = 0;
+                inputRed = 0;
+                inputAlpha = 0;
+                break;
             default:
                 throw new NotImplementedException($"Conversion from {bitmap.ColorType} to bytes");
             }
-            var outBytes = new byte[channelCount * channelLength];
+            var outBytes = new byte[channelCount * iamgeSize];
 
-            for (int i = 0, j = 0; i < channelLength; i += 1, j += 4) {
+            for (int i = 0, j = 0; i < iamgeSize; i += 1, j += 4) {
                 outBytes[outputRed + i] = inputBytes[inputRed + j];
                 outBytes[outputGreen + i] = inputBytes[inputGreen + j];
                 outBytes[outputBlue + i] = inputBytes[inputBlue + j];
+                if (!skipAlpha)
+                    outBytes[outputAlpha + i] = inputBytes[inputAlpha + j];
             }
 
             return outBytes;
@@ -218,5 +269,14 @@ namespace TorchSharp.Examples
 
             return result;
         }
+
+         [DllImport("LibTorchSharp")]
+         static extern void THSVision_BRGA_RGB(IntPtr inputBytes, IntPtr outBytes, int inputChannelCount, int imageSize);
+
+         [DllImport("LibTorchSharp")]
+         static extern void THSVision_BRGA_RGBA(IntPtr inputBytes, IntPtr outBytes, int inputChannelCount, int imageSize);
+
+         [DllImport("LibTorchSharp")]
+         static extern void THSVision_RGB_BRGA(IntPtr inputBytes, IntPtr outBytes, int inputChannelCount, int imageSize);
     }
 }

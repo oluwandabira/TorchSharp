@@ -310,3 +310,47 @@ Tensor THSVision_PerspectiveGrid(const float* c, const int64_t c_length, const i
 
     return nullptr;
 }
+
+void THSVision_BRGA_RGB(const int8_t* inputBytes, int8_t* outBytes, int inputChannelCount, int imageSize)
+{
+    const int inputBlue = 0, inputGreen = 1, inputRed = 2;
+    const int outputRed = 0, outputGreen = imageSize, outputBlue = imageSize * 2;
+
+    bool inputHasAlpha = inputChannelCount == 4;
+
+    for (int i = 0, j = 0; i < imageSize; i += 1, j += inputChannelCount) {
+        outBytes[outputRed + i] = inputBytes[inputRed + j];
+        outBytes[outputGreen + i] = inputBytes[inputGreen + j];
+        outBytes[outputBlue + i] = inputBytes[inputBlue + j];
+    }
+}
+
+void THSVision_BRGA_RGBA(const int8_t* inputBytes, int8_t* outBytes, int inputChannelCount, int imageSize)
+{
+    const int inputBlue = 0, inputGreen = 1, inputRed = 2, inputAlpha = 3;
+    const int outputRed = 0, outputGreen = imageSize, outputBlue = imageSize * 2, outputAlpha = imageSize * 3;
+
+    bool inputHasAlpha = inputChannelCount == 4;
+
+    for (int i = 0, j = 0; i < imageSize; i += 1, j += inputChannelCount) {
+        outBytes[outputRed + i] = inputBytes[inputRed + j];
+        outBytes[outputGreen + i] = inputBytes[inputGreen + j];
+        outBytes[outputBlue + i] = inputBytes[inputBlue + j];
+        outBytes[outputAlpha + j] = inputHasAlpha ? inputBytes[inputAlpha + j] : 255;
+    }
+}
+
+void THSVision_RGB_BRGA(const int8_t* inputBytes, int8_t* outBytes, int inputChannelCount, int imageSize)
+{
+    const int inputRed = 0, inputGreen = imageSize, inputBlue = imageSize * 2, inputAlpha = imageSize * 3;
+    const int outputBlue = 0, outputGreen = 1, outputRed = 2, outputAlpha = 3;
+
+    bool inputHasAlpha = inputChannelCount == 4;
+
+    for (int i = 0, j = 0; i < imageSize; i += 1, j += 4) {
+        outBytes[outputRed + j] = inputBytes[inputRed + i];
+        outBytes[outputGreen + j] = inputBytes[inputGreen + i];
+        outBytes[outputBlue + j] = inputBytes[inputBlue + i];
+        outBytes[outputAlpha + j] = inputHasAlpha ? inputBytes[inputBlue + i] : 255;
+    }
+}

@@ -16,11 +16,7 @@ namespace TorchSharp.Examples
     {
         class SkiaImager : torchvision.io.Imager
         {
-            public override torchvision.ImageFormat DetectFormat(byte[] bytes)
-            {
-                throw new NotImplementedException();
-            }
-            public override Tensor DecodeImage(byte[] image, torchvision.ImageFormat format,  torchvision.io.ImageReadMode mode)
+            public override Tensor DecodeImage(byte[] image, torchvision.io.ImageReadMode mode)
             {
                 throw new NotImplementedException();
             }

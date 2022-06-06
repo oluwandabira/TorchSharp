@@ -19,36 +19,14 @@ namespace TorchSharp.torchvision
         public abstract class Imager
         {
             /// <summary>
-            /// Reads the contents of an image file and return the image's file format.
-            /// </summary>
-            /// <param name="image">Image file contents.</param>
-            /// <returns>The detected image format.</returns>
-            public abstract ImageFormat DetectFormat(byte[] image);
-            /// <summary>
             /// Reads the contents of an image file and returns the result as a <cref>Tensor</cref>.
             /// </summary>
             /// <param name="image">Image file contents.</param>
             /// <param name="mode">Image read mode.</param>
-            /// <remarks>
-            /// The image format is detected from image file contents.
-            /// </remarks>
             /// <returns>
             /// <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
             /// </returns>
-            public Tensor DecodeImage(byte[] image, ImageReadMode mode = ImageReadMode.UNCHANGED)
-            {
-                return DecodeImage(image, DetectFormat(image), mode);
-            }
-            /// <summary>
-            /// Reads the contents of an image file and returns the result as a <cref>Tensor</cref>.
-            /// </summary>
-            /// <param name="image">Image file contents.</param>
-            /// <param name="format">Image format.</param>
-            /// <param name="mode">Image read mode.</param>
-            /// <returns>
-            /// <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
-            /// </returns>
-            public abstract Tensor DecodeImage(byte[] image, ImageFormat format, ImageReadMode mode = ImageReadMode.UNCHANGED);
+            public abstract Tensor DecodeImage(byte[] image, ImageReadMode mode = ImageReadMode.UNCHANGED);
             /// <summary>
             /// Encodes a <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> into an array of bytes.
             /// </summary>

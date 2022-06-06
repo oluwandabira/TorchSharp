@@ -19,7 +19,7 @@ namespace TorchSharp.torchvision
         /// </summary>
         public sealed class ImagerSharp : Imager
         {
-            public override ImageFormat DetectFormat(byte[] image)
+            ImageFormat DetectFormat(byte[] image)
             {
                 var format = Image.DetectFormat(image);
                 if (format is PngFormat) {
@@ -55,8 +55,10 @@ namespace TorchSharp.torchvision
                 return stream.ToArray();
             }
 
-            public override Tensor DecodeImage(byte[] bytes, ImageFormat format, ImageReadMode mode = ImageReadMode.UNCHANGED)
+            public override Tensor DecodeImage(byte[] bytes, ImageReadMode mode = ImageReadMode.UNCHANGED)
             {
+                ImageFormat format = DetectFormat(bytes);
+
                 switch (mode) {
                 
                 case ImageReadMode.UNCHANGED:
