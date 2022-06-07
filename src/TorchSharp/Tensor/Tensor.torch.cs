@@ -135,6 +135,22 @@ namespace TorchSharp
             }
         }
 
+        /// <summary>
+        /// Stack tensors in sequence horizontally (column wise).
+        /// </summary>
+        /// <param name="tensors"></param>
+        /// <returns></returns>
+        public static Tensor hstack(params Tensor[] tensors)
+        {
+            using (var parray = new PinnedArray<IntPtr>()) {
+                IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());
+
+                var res = THSTensor_hstack(tensorsRef, parray.Array.Length);
+                if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                return new Tensor(res);
+            }
+        }
+
         [DllImport("LibTorchSharp")]
         extern static IntPtr THSTensor_vstack(IntPtr tensor, int len);
 
@@ -155,16 +171,48 @@ namespace TorchSharp
         }
 
         /// <summary>
-        /// Creates a new tensor by horizontally stacking the tensors in tensors.
+        /// Stack tensors in sequence vertically (row wise).
         /// </summary>
-        /// <param name="tensor"></param>
-        /// <param name="len"></param>
+        /// <param name="tensors"></param>
         /// <returns></returns>
-        /// <remarks>Equivalent to torch.hstack(tensors), except each zero or one dimensional tensor t in tensors is first reshaped into a (t.numel(), 1) column before being stacked horizontally.</remarks>
+        public static Tensor vstack(params Tensor[] tensors)
+        {
+            using (var parray = new PinnedArray<IntPtr>()) {
+                IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());
+
+                var res = THSTensor_vstack(tensorsRef, parray.Array.Length);
+                if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                return new Tensor(res);
+            }
+        }
+
         [DllImport("LibTorchSharp")]
         extern static IntPtr THSTensor_column_stack(IntPtr tensor, int len);
 
+        /// <summary>
+        /// Creates a new tensor by horizontally stacking the tensors in tensors.
+        /// </summary>
+        /// <param name="tensors"></param>
+        /// <returns></returns>
+        /// <remarks>Equivalent to torch.hstack(tensors), except each zero or one dimensional tensor t in tensors is first reshaped into a (t.numel(), 1) column before being stacked horizontally.</remarks>
         public static Tensor column_stack(IList<Tensor> tensors)
+        {
+            using (var parray = new PinnedArray<IntPtr>()) {
+                IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());
+
+                var res = THSTensor_column_stack(tensorsRef, parray.Array.Length);
+                if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                return new Tensor(res);
+            }
+        }
+
+        /// <summary>
+        /// Creates a new tensor by horizontally stacking the tensors in tensors.
+        /// </summary>
+        /// <param name="tensors"></param>
+        /// <returns></returns>
+        /// <remarks>Equivalent to torch.hstack(tensors), except each zero or one dimensional tensor t in tensors is first reshaped into a (t.numel(), 1) column before being stacked horizontally.</remarks>
+        public static Tensor column_stack(params Tensor[] tensors)
         {
             using (var parray = new PinnedArray<IntPtr>()) {
                 IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());
@@ -194,6 +242,22 @@ namespace TorchSharp
             }
         }
 
+        /// <summary>
+        /// Stack tensors in sequence vertically (row wise).
+        /// </summary>
+        /// <param name="tensors"></param>
+        /// <returns></returns>
+        public static Tensor row_stack(params Tensor[] tensors)
+        {
+            using (var parray = new PinnedArray<IntPtr>()) {
+                IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());
+
+                var res = THSTensor_row_stack(tensorsRef, parray.Array.Length);
+                if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                return new Tensor(res);
+            }
+        }
+
         [DllImport("LibTorchSharp")]
         extern static IntPtr THSTensor_dstack(IntPtr tensor, int len);
 
@@ -204,6 +268,23 @@ namespace TorchSharp
         /// <returns></returns>
         /// <remarks>This is equivalent to concatenation along the third axis after 1-D and 2-D tensors have been reshaped by torch.atleast_3d().</remarks>
         public static Tensor dstack(IList<Tensor> tensors)
+        {
+            using (var parray = new PinnedArray<IntPtr>()) {
+                IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());
+
+                var res = THSTensor_dstack(tensorsRef, parray.Array.Length);
+                if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                return new Tensor(res);
+            }
+        }
+
+        /// <summary>
+        /// Stack tensors in sequence depthwise (along third axis).
+        /// </summary>
+        /// <param name="tensors"></param>
+        /// <returns></returns>
+        /// <remarks>This is equivalent to concatenation along the third axis after 1-D and 2-D tensors have been reshaped by torch.atleast_3d().</remarks>
+        public static Tensor dstack(params Tensor[] tensors)
         {
             using (var parray = new PinnedArray<IntPtr>()) {
                 IntPtr tensorsRef = parray.CreateArray(tensors.Select(p => p.Handle).ToArray());

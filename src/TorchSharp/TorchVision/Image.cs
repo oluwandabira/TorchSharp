@@ -10,7 +10,7 @@ namespace TorchSharp.torchvision
         /// <summary>
         /// <cref>Imager</cref> to be used when a <cref>torchvision.io</cref> image method's <c>imager</c> is unspecified.
         /// </summary>
-        public static Imager DefaultImager { get; set; } = new ImagerSharp();
+        public static Imager DefaultImager { get; set; } = new SkiaImager();
 
         /// <summary>
         /// Abstract class providing a generic way to decode and encode images as <cref>Tensor</cref>s.
@@ -26,7 +26,18 @@ namespace TorchSharp.torchvision
             /// <returns>
             /// <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
             /// </returns>
+            public abstract Tensor DecodeImage(Stream image, ImageReadMode mode = ImageReadMode.UNCHANGED);
+
+            /// <summary>
+            /// Reads the contents of an image file and returns the result as a <cref>Tensor</cref>.
+            /// </summary>
+            /// <param name="image">Image file contents.</param>
+            /// <param name="mode">Image read mode.</param>
+            /// <returns>
+            /// <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
+            /// </returns>
             public abstract Tensor DecodeImage(byte[] image, ImageReadMode mode = ImageReadMode.UNCHANGED);
+
             /// <summary>
             /// Encodes a <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> into an array of bytes.
             /// </summary>
@@ -34,6 +45,16 @@ namespace TorchSharp.torchvision
             /// <param name="format">Image format.</param>
             /// <returns>The encoded image.</returns>
             public abstract byte[] EncodeImage(Tensor image, ImageFormat format);
+
+            /// <summary>
+            /// Encodes a <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> into an array of bytes.
+            /// </summary>
+            /// <param name="stream">An output stream.</param>
+            /// <param name="image"><cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c>.</param>
+            /// <param name="format">Image format.</param>
+            /// <returns>The encoded image.</returns>
+            public abstract void EncodeImage(Stream stream, Tensor image, ImageFormat format);
+
         }
 
         /// <summary>
@@ -72,9 +93,12 @@ namespace TorchSharp.torchvision
         /// <returns>
         /// <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
         /// </returns>
-        public static Tensor read_image(string filename, ImageReadMode mode = ImageReadMode.UNCHANGED, Imager imager = null)
+        public static Tensor read_image(string filename, ImageReadMode mode, Imager imager = null)
         {
-            return (imager ?? DefaultImager).DecodeImage(File.ReadAllBytes(filename), mode);
+            var imgr = imager ?? DefaultImager;
+            using (FileStream stream = File.Open(filename, FileMode.Open)) {
+                return imgr.DecodeImage(stream, mode);
+            }
         }
 
         /// <summary>
@@ -87,7 +111,7 @@ namespace TorchSharp.torchvision
         /// A task that represents the asynchronous read operation.
         /// The value of the TResult parameter is a <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
         /// </returns>
-        public static async Task<Tensor> read_image_async(string filename, ImageReadMode mode = ImageReadMode.UNCHANGED, Imager imager = null)
+        public static async Task<Tensor> read_image_async(string filename, ImageReadMode mode, Imager imager = null)
         {
             byte[] data;
 
@@ -96,7 +120,8 @@ namespace TorchSharp.torchvision
                 await stream.ReadAsync(data, 0, data.Length);
             }
 
-            return (imager ?? DefaultImager).DecodeImage(data, mode);
+            var imgr = imager ?? DefaultImager;
+            return imgr.DecodeImage(data, mode);
         }
 
         /// <summary>
@@ -108,7 +133,10 @@ namespace TorchSharp.torchvision
         /// <param name="imager"><cref>Imager</cref> to be use. Will use <cref>DefaultImager</cref> if null.</param>
         public static void write_image(Tensor image, string filename, ImageFormat format, Imager imager = null)
         {
-            File.WriteAllBytes(filename, (imager ?? DefaultImager).EncodeImage(image, format));
+            using (var stream = File.Create(filename)) {
+                var imgr = imager ?? DefaultImager;
+                imgr.EncodeImage(stream, image, format);
+            }
         }
 
         /// <summary>
@@ -120,8 +148,9 @@ namespace TorchSharp.torchvision
         /// <param name="imager"><cref>Imager</cref> to be use. Will use <cref>DefaultImager</cref> if null.</param>
         public static async void write_image_async(Tensor image, string filename, ImageFormat format, Imager imager = null)
         {
-            var data = (imager ?? DefaultImager).EncodeImage(image, format);
-            using (FileStream stream = File.Open(filename, FileMode.OpenOrCreate)) {
+            var imgr = imager ?? DefaultImager;
+            var data = imgr.EncodeImage(image, format);
+            using (FileStream stream = File.Create(filename)) {
                 await stream.WriteAsync(data, 0, data.Length);
             }
         }
@@ -136,7 +165,8 @@ namespace TorchSharp.torchvision
         /// <returns>A one dimensional <c>uint8</c> <cref>Tensor</cref> that contains the raw bytes of <c>image</c> encoded in the provided format.</returns>
         public static Tensor encode_image(Tensor image, ImageFormat format, Imager imager = null)
         {
-            return (imager ?? DefaultImager).EncodeImage(image, format);
+            var imgr = imager ?? DefaultImager;
+            return imgr.EncodeImage(image, format);
         }
 
 
@@ -149,7 +179,8 @@ namespace TorchSharp.torchvision
         /// <returns><cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c>.</returns>
         public static Tensor decode_image(Tensor image, ImageReadMode mode = ImageReadMode.UNCHANGED, Imager imager = null)
         {
-            return (imager ?? DefaultImager).DecodeImage(image.bytes.ToArray(), mode);
+            var imgr = imager ?? DefaultImager;
+            return imgr.DecodeImage(image.bytes.ToArray(), mode);
         }
     }
 }
