@@ -24,17 +24,14 @@ namespace TorchSharp.Examples
 
             var img = torchvision.io.read_image(filename, torchvision.io.ImageReadMode.RGB);
 
-
             Console.WriteLine($"Image has {img.shape[0]} colour channels with dimensions {img.shape[1]}x{img.shape[2]}");
 
             var transformed = torchvision.transforms.Compose(
                 torchvision.transforms.HorizontalFlip(),
                 torchvision.transforms.Crop(0, 0, 816, 816),
-                torchvision.transforms.Rotate(20),
+                torchvision.transforms.Rotate(20) ,
                 torchvision.transforms.Grayscale()
                 ).forward(img);
-
-            var transformed = torchvision.transforms.functional.vflip(expanded);
 
             torchvision.io.write_image(transformed, "image_transformed.jpg", torchvision.ImageFormat.Jpeg);
         }

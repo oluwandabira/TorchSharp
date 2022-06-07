@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 
 using static TorchSharp.torch;
+using TorchSharp.torchvision;
 
 using SkiaSharp;
 
@@ -32,7 +33,6 @@ namespace TorchSharp.torchvision
             {
                 var skiaFormat = TranslateImageFormat(format); // Better to take the exception early.
 
-
                 var result = new SKBitmap();
 
                 var lstIdx = image.shape.Length;
@@ -57,7 +57,6 @@ namespace TorchSharp.torchvision
                         fixed (byte* input = image.bytes, output = outBytes) {
                             THSVision_RGB_BRGA((IntPtr)input, (IntPtr)output, channels, imageSize);
                         }
-
                     }
                 }
 
@@ -84,6 +83,9 @@ namespace TorchSharp.torchvision
 
             private static Tensor ToTensor(ImageReadMode mode, SKBitmap bitmap)
             {
+                if (mode == ImageReadMode.UNCHANGED) {
+                    mode = bitmap.ColorType == SKColorType.Gray8 ? ImageReadMode.GRAY : ImageReadMode.RGB;
+                }
                 if (bitmap.ColorType == SKColorType.Gray8 && mode == ImageReadMode.GRAY)
                     return torch.tensor(bitmap.Bytes, 1, bitmap.Height, bitmap.Width);
 

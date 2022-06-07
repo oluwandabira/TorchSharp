@@ -58,13 +58,6 @@ namespace TorchSharp.torchvision
             public abstract void EncodeImage(Stream stream, Tensor image, ImageFormat format);
         }
 
-        public enum ImageFormat
-        {
-            PNG,
-            JPEG,
-            UNKNOWN
-        }
-
         /// <summary>
         /// Support for various modes while reading images. Affects the returned <cref>Tensor</cref>'s <c>color_channels</c>.
         /// </summary>
