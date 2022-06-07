@@ -94,7 +94,7 @@ namespace TorchSharp.torchvision
         /// <returns>
         /// <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
         /// </returns>
-        public static Tensor read_image(string filename, ImageReadMode mode, Imager imager = null)
+        public static Tensor read_image(string filename, ImageReadMode mode = ImageReadMode.UNCHANGED, Imager imager = null)
         {
             var imgr = imager ?? DefaultImager;
             using (FileStream stream = File.Open(filename, FileMode.Open)) {
@@ -112,7 +112,7 @@ namespace TorchSharp.torchvision
         /// A task that represents the asynchronous read operation.
         /// The value of the TResult parameter is a <cref>Tensor</cref> with <c>shape = [color_channels, image_height, image_width]</c> and <c>dtype = uint8</c>.
         /// </returns>
-        public static async Task<Tensor> read_image_async(string filename, ImageReadMode mode, Imager imager = null)
+        public static async Task<Tensor> read_image_async(string filename, ImageReadMode mode = ImageReadMode.UNCHANGED, Imager imager = null)
         {
             byte[] data;
 
