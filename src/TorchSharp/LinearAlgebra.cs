@@ -105,6 +105,20 @@ namespace TorchSharp
             }
 
             [DllImport("LibTorchSharp")]
+            static extern IntPtr THSLinalg_cross(IntPtr input, IntPtr other, long dim);
+
+            /// <summary>
+            /// Returns the cross product of vectors in dimension dim of input and other.
+            /// input and other must have the same size, and the size of their dim dimension should be 3.
+            /// </summary>
+            public static Tensor cross(Tensor input, Tensor other, long dim = -1)
+            {
+                var res = THSLinalg_cross(input.Handle, other.Handle, dim);
+                if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                return new Tensor(res);
+            }
+
+            [DllImport("LibTorchSharp")]
             static extern IntPtr THSLinalg_det(IntPtr tensor);
 
             /// <summary>
@@ -135,6 +149,24 @@ namespace TorchSharp
                     torch.CheckForErrors();
                 return (new Tensor(res), new Tensor(logabsdet));
             }
+
+            /// <summary>
+            /// Returns a partial view of input with the its diagonal elements with respect to dim1 and dim2 appended as a dimension at the end of the shape.
+            /// The argument offset controls which diagonal to consider:
+            ///
+            ///     If offset == 0, it is the main diagonal.
+            ///     If offset &gt; 0, it is above the main diagonal.
+            ///     If offset &lt; 0, it is below the main diagonal.
+            /// </summary>
+            /// <param name="input">The input tensor</param>
+            /// <param name="offset">Which diagonal to consider. Default: 0 (main diagonal).</param>
+            /// <param name="dim1">First dimension with respect to which to take diagonal. Default: -1.</param>
+            /// <param name="dim2">Second dimension with respect to which to take diagonal. Default: -2.</param>
+            /// <remarks>
+            /// Applying torch.diag_embed() to the output of this function with the same arguments yields a diagonal matrix with the diagonal entries of the input.
+            /// However, torch.diag_embed() has different default dimensions, so those need to be explicitly specified.
+            /// </remarks>
+            public static Tensor diagonal(Tensor input, int offset = 0, int dim1 = -2, int dim2 = -1) => input.diagonal(offset, dim1, dim2);
 
             [DllImport("LibTorchSharp")]
             static extern IntPtr THSLinalg_eig(IntPtr tensor, out IntPtr pEigenvectors);
@@ -261,6 +293,23 @@ namespace TorchSharp
                 return (new Tensor(solution), new Tensor(residuals), new Tensor(rank), new Tensor(singularValues));
             }
 
+            [DllImport("LibTorchSharp")]
+            static extern IntPtr THSLinalg_lu_factor(IntPtr tensor, bool pivot, out IntPtr pPivots);
+
+            /// <summary>
+            /// Computes a compact representation of the LU factorization with partial pivoting of a matrix.
+            /// </summary>
+            /// <param name="input"></param>
+            /// <param name="pivot"></param>
+            /// <returns></returns>
+            public static (Tensor LU, Tensor? Pivots) lu_factor(Tensor input, bool pivot = true)
+            {
+                var solution = THSLinalg_lu_factor(input.Handle, pivot, out var pivots);
+                if (solution == IntPtr.Zero)
+                    torch.CheckForErrors();
+                return (new Tensor(solution), pivots == IntPtr.Zero ? null : new Tensor(pivots));
+            }
+
             /// <summary>
             /// Computes a solution to the least squares problem of a system of linear equations.
             /// </summary>
@@ -274,6 +323,11 @@ namespace TorchSharp
                     torch.CheckForErrors();
                 return (new Tensor(solution), new Tensor(residuals), new Tensor(rank), new Tensor(singularValues));
             }
+
+            /// <summary>
+            /// Computes the matrix exponential of a square matrix or of each square matrix in a batch.
+            /// </summary>
+            public static Tensor matrix_exp(Tensor input) => input.matrix_exp(); 
 
             [DllImport("LibTorchSharp")]
             static extern IntPtr THSLinalg_matrix_norm_fronuc(IntPtr tensor, byte fronuc, IntPtr dim, int dim_length, bool keepdim);
@@ -324,20 +378,42 @@ namespace TorchSharp
             }
 
             [DllImport("LibTorchSharp")]
-            static extern IntPtr THSLinalg_matrix_rank(IntPtr tensor, double tol, bool has_tol, bool hermitian);
+            static extern IntPtr THSLinalg_matrix_rank(IntPtr tensor, double atol, bool has_atol, double rtol, bool has_rtol, bool hermitian);
+
+            [DllImport("LibTorchSharp")]
+            static extern IntPtr THSLinalg_matrix_rank_tensor(IntPtr tensor, IntPtr atol, IntPtr rtol, bool hermitian);
 
             /// <summary>
             /// Computes the numerical rank of a matrix.
             /// The matrix rank is computed as the number of singular values(or eigenvalues in absolute value when hermitian = True) that are greater than the specified tol threshold.
             /// </summary>
             /// <param name="input">Tensor of shape (*, m, n) where * is zero or more batch dimensions.</param>
-            /// <param name="tol">The tolerance value.</param>
+            /// <param name="atol">The absolute tolerance value.</param>
+            /// <param name="rtol">The relative tolerance value.</param>
             /// <param name="hermitian">Indicates whether A is Hermitian if complex or symmetric if real</param>
             /// <returns></returns>
-            public static Tensor matrix_rank(Tensor input, double? tol = null, bool hermitian = false)
+            public static Tensor matrix_rank(Tensor input, double? atol = null, double? rtol = null, bool hermitian = false)
             {
                 unsafe {
-                    var res = THSLinalg_matrix_rank(input.Handle, tol ?? double.NegativeInfinity, tol.HasValue, hermitian);
+                    var res = THSLinalg_matrix_rank(input.Handle, atol ?? double.NegativeInfinity, atol.HasValue, rtol ?? double.NegativeInfinity, rtol.HasValue, hermitian);
+                    if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                    return new Tensor(res);
+                }
+            }
+
+            /// <summary>
+            /// Computes the numerical rank of a matrix.
+            /// The matrix rank is computed as the number of singular values(or eigenvalues in absolute value when hermitian = True) that are greater than the specified tol threshold.
+            /// </summary>
+            /// <param name="input">Tensor of shape (*, m, n) where * is zero or more batch dimensions.</param>
+            /// <param name="atol">The absolute tolerance value.</param>
+            /// <param name="rtol">The relative tolerance value.</param>
+            /// <param name="hermitian">Indicates whether A is Hermitian if complex or symmetric if real</param>
+            /// <returns></returns>
+            public static Tensor matrix_rank(Tensor input, Tensor atol, Tensor? rtol = null, bool hermitian = false)
+            {
+                unsafe {
+                    var res = THSLinalg_matrix_rank_tensor(input.Handle, atol is null ? IntPtr.Zero : atol.Handle, rtol is null ? IntPtr.Zero : rtol.Handle, hermitian);
                     if (res == IntPtr.Zero) { torch.CheckForErrors(); }
                     return new Tensor(res);
                 }
@@ -456,21 +532,45 @@ namespace TorchSharp
             }
 
             [DllImport("LibTorchSharp")]
-            static extern IntPtr THSLinalg_pinv(IntPtr tensor, double rcond, bool hermitian);
+            static extern IntPtr THSLinalg_pinv(IntPtr tensor, double atol, bool has_atol, double rtol, bool has_rtol, bool hermitian);
+
+            [DllImport("LibTorchSharp")]
+            static extern IntPtr THSLinalg_pinv_tensor(IntPtr tensor, IntPtr atol, IntPtr rtol, bool hermitian);
 
             /// <summary>
-            /// Computes the pseudoinverse (Moore-Penrose inverse) of a matrix.
+            /// Computes the numerical rank of a matrix.
+            /// The matrix rank is computed as the number of singular values(or eigenvalues in absolute value when hermitian = True) that are greater than the specified tol threshold.
             /// </summary>
             /// <param name="input">Tensor of shape (*, m, n) where * is zero or more batch dimensions.</param>
-            /// <param name="rcond">The tolerance value to determine when is a singular value zero </param>
-            /// <param name="hermitian">Indicates whether A is Hermitian if complex or symmetric if real. </param>
+            /// <param name="atol">The absolute tolerance value.</param>
+            /// <param name="rtol">The relative tolerance value.</param>
+            /// <param name="hermitian">Indicates whether A is Hermitian if complex or symmetric if real</param>
             /// <returns></returns>
-            public static Tensor pinv(Tensor input, double rcond = 1e-15, bool hermitian = false)
+            public static Tensor pinv(Tensor input, double? atol = null, double? rtol = null, bool hermitian = false)
             {
-                var res = THSLinalg_pinv(input.Handle, rcond, hermitian);
-                if (res == IntPtr.Zero)
-                    torch.CheckForErrors();
-                return new Tensor(res);
+                unsafe {
+                    var res = THSLinalg_pinv(input.Handle, atol ?? double.NegativeInfinity, atol.HasValue, rtol ?? double.NegativeInfinity, rtol.HasValue, hermitian);
+                    if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                    return new Tensor(res);
+                }
+            }
+
+            /// <summary>
+            /// Computes the numerical rank of a matrix.
+            /// The matrix rank is computed as the number of singular values(or eigenvalues in absolute value when hermitian = True) that are greater than the specified tol threshold.
+            /// </summary>
+            /// <param name="input">Tensor of shape (*, m, n) where * is zero or more batch dimensions.</param>
+            /// <param name="atol">The absolute tolerance value.</param>
+            /// <param name="rtol">The relative tolerance value.</param>
+            /// <param name="hermitian">Indicates whether A is Hermitian if complex or symmetric if real</param>
+            /// <returns></returns>
+            public static Tensor pinv(Tensor input, Tensor atol, Tensor? rtol = null, bool hermitian = false)
+            {
+                unsafe {
+                    var res = THSLinalg_pinv_tensor(input.Handle, atol is null ? IntPtr.Zero : atol.Handle, rtol is null ? IntPtr.Zero : rtol.Handle, hermitian);
+                    if (res == IntPtr.Zero) { torch.CheckForErrors(); }
+                    return new Tensor(res);
+                }
             }
 
             public enum QRMode

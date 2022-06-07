@@ -3,7 +3,6 @@
 
 #include "../Stdafx.h"
 
-#include "TH/THTensor.h"
 #include "torch/torch.h"
 
 #include "Utils.h"
@@ -720,6 +719,12 @@ EXPORT_API(Tensor) THSTensor_lt_scalar_(const Tensor left, const Scalar right);
 
 EXPORT_API(Tensor) THSTensor_logical_not(const Tensor tensor);
 
+EXPORT_API(Tensor) THSTensor_lu(const Tensor tensor, bool pivot, bool get_infos, Tensor* infos, Tensor* pivots);
+
+EXPORT_API(Tensor) THSTensor_lu_solve(const Tensor tensor, const Tensor LU_data, const Tensor LU_pivots);
+
+EXPORT_API(Tensor) THSTensor_lu_unpack(const Tensor LU_data, const Tensor LU_pivots, bool unpack_data, bool unpack_pivots, Tensor* L, Tensor* U);
+
 EXPORT_API(Tensor) THSTensor_masked_fill(const Tensor tensor, const Tensor mask, const Scalar value);
 
 EXPORT_API(Tensor) THSTensor_masked_fill_(const Tensor tensor, const Tensor mask, const Scalar value);
@@ -1315,6 +1320,8 @@ EXPORT_API(Tensor) THSLinalg_cond_none(const Tensor tensor);
 EXPORT_API(Tensor) THSLinalg_cholesky(const Tensor tensor);
 EXPORT_API(Tensor) THSLinalg_cholesky_ex(const Tensor tensor, bool check_errors, Tensor* info);
 
+EXPORT_API(Tensor) THSLinalg_cross(const Tensor input, const Tensor other, const int64_t dim);
+
 EXPORT_API(Tensor) THSLinalg_det(const Tensor tensor);
 
 EXPORT_API(Tensor) THSLinalg_slogdet(const Tensor tensor, Tensor *logabsdet);
@@ -1333,12 +1340,15 @@ EXPORT_API(Tensor) THSLinalg_inv_ex(const Tensor tensor, bool check_errors, Tens
 EXPORT_API(Tensor) THSLinalg_lstsq_none(const Tensor A, const Tensor B, Tensor* residuals, Tensor* rank, Tensor* singular_values);
 EXPORT_API(Tensor) THSLinalg_lstsq_rcond(const Tensor A, const Tensor B, const double rcond, Tensor* residuals, Tensor* rank, Tensor* singular_values);
 
+EXPORT_API(Tensor) THSLinalg_lu_factor(const Tensor A, const bool pivot, Tensor* pivots);
+
 EXPORT_API(Tensor) THSLinalg_matrix_power(const Tensor target, const int64_t n);
 
 EXPORT_API(Tensor) THSLinalg_matrix_norm(const Tensor tensor, const Scalar ord, const int64_t* dim, const int dim_length, const bool keepdim);
 EXPORT_API(Tensor) THSLinalg_matrix_norm_fronuc(const Tensor tensor, const int8_t fronuc, const int64_t* dim, const int dim_length, const bool keepdim);
 
-EXPORT_API(Tensor) THSLinalg_matrix_rank(const Tensor tensor, const double tol, const bool has_tol, const bool hermitian);
+EXPORT_API(Tensor) THSLinalg_matrix_rank(const Tensor tensor, const double atol, const bool has_atol, const double rtol, const bool has_rtol, const bool hermitian);
+EXPORT_API(Tensor) THSLinalg_matrix_rank_tensor(const Tensor tensor, const Tensor atol, const Tensor rtol, const bool hermitian);
 
 EXPORT_API(Tensor) THSLinalg_multi_dot(const Tensor* tensors, const int length);
 
@@ -1347,7 +1357,10 @@ EXPORT_API(Tensor) THSLinalg_norm_float(const Tensor tensor, const double p, con
 EXPORT_API(Tensor) THSLinalg_norm_int(const Tensor tensor, const int p, const int64_t* dim, const int dim_length, const bool keepdim);
 EXPORT_API(Tensor) THSLinalg_norm_opt(const Tensor tensor, const int64_t* dim, const int dim_length, const bool keepdim);
 
-EXPORT_API(Tensor) THSLinalg_pinv(const Tensor tensor, const double rcond, const bool hermitian);
+EXPORT_API(Tensor) THSLinalg_pinverse(const Tensor tensor, const double rcond, const bool hermitian);
+
+EXPORT_API(Tensor) THSLinalg_pinv(const Tensor tensor, const double atol, const bool has_atol, const double rtol, const bool has_rtol, const bool hermitian);
+EXPORT_API(Tensor) THSLinalg_pinv_tensor(const Tensor tensor, const Tensor atol, const Tensor rtol, const bool hermitian);
 
 EXPORT_API(Tensor) THSLinalg_qr(const Tensor tensor, const char mode, Tensor* R);
 
