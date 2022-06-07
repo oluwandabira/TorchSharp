@@ -5,6 +5,9 @@ using System.Linq;
 using System.IO;
 using SkiaSharp;
 using static TorchSharp.torch;
+using TorchSharp.torchvision;
+using static TorchSharp.torchvision.io;
+
 using System.Runtime.InteropServices;
 
 namespace TorchSharp.Examples
@@ -16,6 +19,7 @@ namespace TorchSharp.Examples
             var images = new string[] {
                 //
                 // Find some PNG (or JPEG, etc.) files, download them, and then put their file paths here.
+                // They shoudl be square and at least 256x256, preferrably larger
                 //
             };
 
@@ -30,10 +34,12 @@ namespace TorchSharp.Examples
 
             var transform = torchvision.transforms.Compose(
                 torchvision.transforms.ConvertImageDType(ScalarType.Float32),
-                //torchvision.transforms.ColorJitter(.5f, .5f, .5f, .25f),
+                torchvision.transforms.ColorJitter(.5f, .5f, .5f, .25f),
                 torchvision.transforms.ConvertImageDType(ScalarType.Byte),
                 torchvision.transforms.Resize(256, 256)
                 );
+
+            var imager = new torchvision.io.SkiaImager();
 
             var second = transform.forward(first);
 
@@ -42,10 +48,7 @@ namespace TorchSharp.Examples
                 var image = second[n]; // CxHxW
                 var channels = image.shape[0];
 
-                using (var stream = File.OpenWrite(outputPathPrefix + n + ".png")) {
-                    var bitmap = GetBitmapFromBytes(image.data<byte>().ToArray(), 256, 256, channels == 1 ? SKColorType.Gray8 : SKColorType.Bgra8888);
-                    bitmap.Encode(stream, SKEncodedImageFormat.Png, 100);
-                }
+                torchvision.io.write_image(image, outputPathPrefix + n + ".png", ImageFormat.Png);
             }
 
             // Then the functional API version.
@@ -62,8 +65,7 @@ namespace TorchSharp.Examples
                 var channels = image.shape[0];
 
                 using (var stream = File.OpenWrite(outputPathPrefix + (n + first.shape[0]) + ".png")) {
-                    var bitmap = GetBitmapFromBytes(image.data<byte>().ToArray(), 256, 256, channels == 1 ? SKColorType.Gray8 : SKColorType.Bgra8888);
-                    bitmap.Encode(stream, SKEncodedImageFormat.Png, 100);
+                    imager.EncodeImage(stream, image, ImageFormat.Png);
                 }
             }
         }
@@ -80,8 +82,10 @@ namespace TorchSharp.Examples
                 Enumerable.Range(0, images.Count).ToArray() :
                 Enumerable.Range(0, images.Count).OrderBy(c => rnd.Next()).ToArray();
 
+            var imager = new torchvision.io.SkiaImager();
 
             // Go through the data and create tensors
+
             for (var i = 0; i < images.Count;) {
 
                 var take = Math.Min(batchSize, Math.Max(0, images.Count - i));
@@ -96,127 +100,26 @@ namespace TorchSharp.Examples
                     var lblStart = idx * (1 + imgSize);
                     var imgStart = lblStart + 1;
 
-                    using (var stream = new SKManagedStream(File.OpenRead(images[idx])))
-                    using (var bitmap = SKBitmap.Decode(stream)) {
-                        using (var inputTensor = torch.tensor(GetBytesWithoutAlpha(bitmap))) {
+                    using (var inputTensor = torchvision.io.read_image(images[idx], ImageReadMode.RGB)) {
 
-                            Tensor finalized = inputTensor;
+                        Tensor finalized = inputTensor;
 
-                            var nz = inputTensor.count_nonzero().item<long>();
-
-                            if (bitmap.Width != width || bitmap.Height != height) {
-                                var t = inputTensor.reshape(1, channels, bitmap.Height, bitmap.Width);
-                                finalized = torchvision.transforms.functional.resize(t, height, width).reshape(imgSize);
-                            }
-
-                            dataTensor.index_put_(finalized, TensorIndex.Single(j));
+                        if (inputTensor.shape[2] != width || inputTensor.shape[1] != height) {
+                            finalized = torchvision.transforms.functional.resize(finalized, height, width).reshape(imgSize);
+                        } else {
+                            finalized = finalized.alias();
                         }
+
+                        dataTensor.index_put_(finalized, TensorIndex.Single(j));
                     }
                 }
 
                 tensors.Add(dataTensor.reshape(take, channels, height, width));
+
                 dataTensor.Dispose();
             }
 
             return tensors;
-        }
-
-        private static byte[] GetBytesWithoutAlpha(SKBitmap bitmap)
-        {
-            var height = bitmap.Height;
-            var width = bitmap.Width;
-
-            var inputBytes = bitmap.Bytes;
-
-            if (bitmap.ColorType == SKColorType.Gray8)
-                return inputBytes;
-
-            if (bitmap.BytesPerPixel != 4 && bitmap.BytesPerPixel != 1)
-                throw new ArgumentException("Conversion only supports grayscale and ARGB");
-
-            var channelLength = height * width;
-
-            var channelCount = 3;
-
-            int inputBlue = 0, inputGreen = 0, inputRed = 0;
-            int outputRed = 0, outputGreen = channelLength, outputBlue = channelLength * 2;
-
-            switch (bitmap.ColorType) {
-            case SKColorType.Bgra8888:
-                inputBlue = 0;
-                inputGreen = 1;
-                inputRed = 2;
-                break;
-
-            default:
-                throw new NotImplementedException($"Conversion from {bitmap.ColorType} to bytes");
-            }
-            var outBytes = new byte[channelCount * channelLength];
-
-            for (int i = 0, j = 0; i < channelLength; i += 1, j += 4) {
-                outBytes[outputRed + i] = inputBytes[inputRed + j];
-                outBytes[outputGreen + i] = inputBytes[inputGreen + j];
-                outBytes[outputBlue + i] = inputBytes[inputBlue + j];
-            }
-
-            return outBytes;
-        }
-
-        private static SKBitmap GetBitmapFromBytes(byte[] inputBytes, int height, int width, SKColorType colorType)
-        {
-            var result = new SKBitmap();
-
-            var channelLength = height * width;
-
-            var channelCount = 0;
-
-            int inputRed = 0, inputGreen = channelLength, inputBlue = channelLength * 2;
-            int outputBlue = 0, outputGreen = 0, outputRed = 0, outputAlpha = 0;
-
-            switch (colorType) {
-            case SKColorType.Bgra8888:
-                outputBlue = 0;
-                outputGreen = 1;
-                outputRed = 2;
-                outputAlpha = 3;
-                channelCount = 3;
-                break;
-
-            case SKColorType.Gray8:
-                channelCount = 1;
-                break;
-
-            default:
-                throw new NotImplementedException($"Conversion from {colorType} to bytes");
-            }
-
-            byte[] outBytes = null;
-
-            if (channelCount == 1) {
-
-                // Greyscale
-
-                outBytes = inputBytes;
-            } else {
-
-                outBytes = new byte[(channelCount + 1) * channelLength];
-
-                for (int i = 0, j = 0; i < channelLength; i += 1, j += 4) {
-                    outBytes[outputRed + j] = inputBytes[inputRed + i];
-                    outBytes[outputGreen + j] = inputBytes[inputGreen + i];
-                    outBytes[outputBlue + j] = inputBytes[inputBlue + i];
-                    outBytes[outputAlpha + j] = 255;
-                }
-            }
-
-            // pin the managed array so that the GC doesn't move it
-            var gcHandle = GCHandle.Alloc(outBytes, GCHandleType.Pinned);
-
-            // install the pixels with the color type of the pixel data
-            var info = new SKImageInfo(width, height, colorType, SKAlphaType.Unpremul);
-            result.InstallPixels(info, gcHandle.AddrOfPinnedObject(), info.RowBytes, delegate { gcHandle.Free(); }, null);
-
-            return result;
         }
     }
 }

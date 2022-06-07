@@ -34,12 +34,14 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor adjust_brightness(Tensor img, double brightness_factor)
             {
+                var scope = NewDisposeScope();
+
                 if (brightness_factor == 1.0)
                     // Special case -- no change.
                     return img.alias();
 
                 using var zeros = torch.zeros_like(img);
-                return Blend(img, zeros, brightness_factor);
+                return Blend(img, zeros, brightness_factor).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -53,6 +55,8 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor adjust_contrast(Tensor img, double contrast_factor)
             {
+                var scope = NewDisposeScope();
+
                 if (contrast_factor == 1.0)
                     // Special case -- no change.
                     return img.alias();
@@ -62,7 +66,7 @@ namespace TorchSharp.torchvision
                 using var t1 = t0.to_type(dtype);
                 using var mean = torch.mean(t1, new long[] { -3, -2, -1 }, keepDimension: true);
 
-                return Blend(img, mean, contrast_factor);
+                return Blend(img, mean, contrast_factor).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -79,6 +83,8 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor adjust_gamma(Tensor img, double gamma, double gain = 1.0)
             {
+                var scope = NewDisposeScope();
+
                 var dtype = img.dtype;
                 if (!torch.is_floating_point(img)) {
                     img = transforms.functional.convert_image_dtype(img, torch.float32);
@@ -90,7 +96,7 @@ namespace TorchSharp.torchvision
                 using var t1 = gain * t0;
                 using var t2 = t1.clamp(0, 1);
 
-                return convert_image_dtype(t2, dtype);
+                return convert_image_dtype(t2, dtype).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -115,6 +121,8 @@ namespace TorchSharp.torchvision
             /// </remarks>
             public static Tensor adjust_hue(Tensor img, double hue_factor, bool degrees = false)
             {
+                var scope = NewDisposeScope();
+
                 if (hue_factor == 0.0)
                     // Special case -- no change.
                     return img.alias();
@@ -128,7 +136,7 @@ namespace TorchSharp.torchvision
 
                 var res = THSVision_AdjustHue(img.Handle, hue_factor);
                 if (res == IntPtr.Zero) { CheckForErrors(); }
-                return new Tensor(res);
+                return new Tensor(res).MoveToOuterDisposeScope();
             }
 
             /* Tensor THSVision_AdjustHue(const Tensor i, const double hue_factor) */
@@ -151,8 +159,10 @@ namespace TorchSharp.torchvision
                     // Special case -- no change.
                     return img.alias();
 
+                var scope = NewDisposeScope();
+
                 using var t0 = transforms.functional.rgb_to_grayscale(img);
-                return Blend(img, t0, saturation_factor);
+                return Blend(img, t0, saturation_factor).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -169,8 +179,10 @@ namespace TorchSharp.torchvision
                 if (img.shape[img.shape.Length - 1] <= 2 || img.shape[img.shape.Length - 2] <= 2)
                     return img.alias();
 
+                var scope = NewDisposeScope();
+
                 using var t0 = BlurredDegenerateImage(img);
-                return Blend(img, t0, sharpness);
+                return Blend(img, t0, sharpness).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -201,6 +213,8 @@ namespace TorchSharp.torchvision
                     shear = new float[] { shear[0], shear[0] };
                 }
 
+                var scope = NewDisposeScope();
+
                 var matrix = GetInverseAffineMatrix((0.0f, 0.0f), angle, (translate[0], translate[1]), scale, (shear[0], shear[1]));
 
                 var dtype = torch.is_floating_point(img) ? img.dtype : ScalarType.Float32;
@@ -211,7 +225,7 @@ namespace TorchSharp.torchvision
                 var end_ = img.shape.Length;
 
                 using var grid = GenerateAffineGrid(theta, img.shape[end_ - 1], img.shape[end_ - 2], img.shape[end_ - 1], img.shape[end_ - 2]);
-                return ApplyGridTransform(img, grid, InterpolationMode.Nearest, fill: fills);
+                return ApplyGridTransform(img, grid, InterpolationMode.Nearest, fill: fills).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -241,6 +255,8 @@ namespace TorchSharp.torchvision
                 var bound = input.IsIntegral() ? 255.0f : 1.0f;
                 var dtype = input.IsIntegral() ? ScalarType.Float32 : input.dtype;
 
+                var scope = NewDisposeScope();
+
                 using var t0 = input.amin(new long[] { -2, -1 }, keepDim: true);
                 using var t1 = input.amax(new long[] { -2, -1 }, keepDim: true);
 
@@ -263,7 +279,7 @@ namespace TorchSharp.torchvision
                 using var t9 = t8 * scale;
                 using var t10 = t9.clamp(0, bound);
 
-                return t10.to(input.dtype);
+                return t10.to(input.dtype).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -284,7 +300,9 @@ namespace TorchSharp.torchvision
                 var top = (int)(iHeight - height) / 2;
                 var left = (int)(iWidth - width) / 2;
 
-                return input.crop(top, left, height, width);
+                var scope = NewDisposeScope();
+
+                return input.crop(top, left, height, width).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -305,6 +323,8 @@ namespace TorchSharp.torchvision
                 if (image.dtype == dtype)
                     return image.alias();
 
+                var scope = NewDisposeScope();
+
                 var output_max = MaxValue(dtype);
 
                 if (torch.is_floating_point(image)) {
@@ -320,7 +340,7 @@ namespace TorchSharp.torchvision
 
                     var eps = 1e-3;
                     using var result = image.mul(output_max + 1.0 - eps);
-                    return result.to_type(dtype);
+                    return result.to_type(dtype).MoveToOuterDisposeScope();
 
                 } else {
                     // Integer to floating point.
@@ -329,17 +349,17 @@ namespace TorchSharp.torchvision
 
                     if (torch.is_floating_point(dtype)) {
                         using var t0 = image.to_type(dtype);
-                        return t0 / input_max;
+                        return (t0 / input_max).MoveToOuterDisposeScope();
                     }
 
                     if (input_max > output_max) {
                         var factor = (input_max + 1) / (output_max + 1);
                         using var t0 = torch.div(image, factor);
-                        return t0.to_type(dtype);
+                        return t0.to_type(dtype).MoveToOuterDisposeScope();
                     } else {
                         var factor = (output_max + 1) / (input_max + 1);
                         using var t0 = image.to_type(dtype);
-                        return t0 * factor;
+                        return (t0 * factor).MoveToOuterDisposeScope();
                     }
                 }
             }
@@ -357,7 +377,8 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor crop(Tensor input, int top, int left, int height, int width)
             {
-                return input.crop(top, left, height, width);
+                var scope = NewDisposeScope();
+                return input.crop(top, left, height, width).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -385,14 +406,16 @@ namespace TorchSharp.torchvision
                 if (input.dtype != ScalarType.Byte)
                     throw new ArgumentException($"equalize() requires a byte image, but the type of the argument is {input.dtype}.");
 
+                var scope = NewDisposeScope();
+
                 if (input.ndim == 3) {
-                    return EqualizeSingleImage(input);
+                    return EqualizeSingleImage(input).MoveToOuterDisposeScope();
                 }
 
                 var images = Enumerable.Range(0, (int)input.shape[0]).Select(i => EqualizeSingleImage(input[i])).ToList();
                 var result = torch.stack(images);
                 foreach (var img in images) { img.Dispose(); }
-                return result;
+                return result.MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -408,11 +431,13 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor erase(Tensor img, int top, int left, int height, int width, Tensor value, bool inplace = false)
             {
+                var scope = NewDisposeScope();
+
                 if (!inplace) {
                     using var t0 = img.clone();
-                    return t0.index_put_(value, new TensorIndex[] { TensorIndex.Ellipsis, (top, top + height), (left, left + width) });
+                    return t0.index_put_(value, new TensorIndex[] { TensorIndex.Ellipsis, (top, top + height), (left, left + width) }).MoveToOuterDisposeScope();
                 } else {
-                    return img.index_put_(value, new TensorIndex[] { TensorIndex.Ellipsis, (top, top + height), (left, left + width) });
+                    return img.index_put_(value, new TensorIndex[] { TensorIndex.Ellipsis, (top, top + height), (left, left + width) }).MoveToOuterDisposeScope();
                 }
             }
 
@@ -440,6 +465,9 @@ namespace TorchSharp.torchvision
                         sigma[0],
                     };
                 }
+
+                var scope = NewDisposeScope();
+
                 using var t0 = GetGaussianKernel2d(kernelSize, sigma, dtype, input.device);
                 using var kernel = t0.expand(input.shape[input.shape.Length - 3], 1, t0.shape[0], t0.shape[1]);
 
@@ -457,7 +485,7 @@ namespace TorchSharp.torchvision
                 using var img1 = TorchSharp.torchvision.transforms.functional.pad(img0, padding, padding_mode: PaddingModes.Reflect);
                 using var img2 = torch.nn.functional.conv2d(img1, kernel, groups: img1.shape[img1.shape.Length - 3]);
 
-                return SqueezeOut(img2, needCast, needSqueeze, out_dtype);
+                return SqueezeOut(img2, needCast, needSqueeze, out_dtype).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -494,11 +522,13 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor invert(Tensor input)
             {
+                var scope = NewDisposeScope();
+
                 using var t0 = -input;
                 if (input.IsIntegral()) {
-                    return t0 + 255;
+                    return (t0 + 255).MoveToOuterDisposeScope();
                 } else {
-                    return t0 + 1.0;
+                    return (t0 + 1.0).MoveToOuterDisposeScope();
                 }
             }
 
@@ -512,6 +542,8 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor normalize(Tensor input, double[] means, double[] stdevs, ScalarType dtype = ScalarType.Float32)
             {
+                var scope = NewDisposeScope();
+
                 if (means.Length != stdevs.Length)
                     throw new ArgumentException("means and stdevs must be the same length in call to Normalize");
                 if (means.Length != input.shape[1])
@@ -521,7 +553,7 @@ namespace TorchSharp.torchvision
                 using var stdev = stdevs.ToTensor(new long[] { 1, stdevs.Length, 1, 1 }).to(input.dtype, input.device);  // Assumes NxCxHxW
                 using var t0 = input - mean;
 
-                return t0 / stdev;
+                return (t0 / stdev).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -618,6 +650,8 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor perspective(Tensor img, IList<IList<int>> startpoints, IList<IList<int>> endpoints, InterpolationMode interpolation = InterpolationMode.Bilinear, IList<float> fill = null)
             {
+                var scope = NewDisposeScope();
+
                 if (interpolation != InterpolationMode.Nearest && interpolation != InterpolationMode.Bilinear)
                     throw new ArgumentException($"Invalid interpolation mode for 'perspective': {interpolation}. Use 'nearest' or 'bilinear'.");
 
@@ -630,7 +664,7 @@ namespace TorchSharp.torchvision
                 var dtype = torch.is_floating_point(img) ? img.dtype : ScalarType.Float32;
                 using var grid = PerspectiveGrid(coeffs, ow, oh, dtype: dtype, device: img.device);
 
-                return ApplyGridTransform(img, grid, interpolation, fill);
+                return ApplyGridTransform(img, grid, interpolation, fill).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -641,9 +675,11 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor posterize(Tensor input, int bits)
             {
+                var scope = NewDisposeScope();
+
                 if (input.dtype != ScalarType.Byte) throw new ArgumentException("Only torch.byte image tensors are supported");
                 using var mask = torch.tensor((byte)-(1 << (8 - bits)));
-                return input & mask;
+                return (input & mask).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -665,6 +701,8 @@ namespace TorchSharp.torchvision
 
                 if (iHeight == height && iWidth == width)
                     return input;
+
+                var scope = NewDisposeScope();
 
                 var h = height;
                 var w = width;
@@ -693,7 +731,7 @@ namespace TorchSharp.torchvision
 
                 using var img1 = torch.nn.functional.interpolate(img0, new long[] { h, w }, mode: interpolation, align_corners: null);
 
-                return SqueezeOut(img1, needCast, needSqueeze, dtype);
+                return SqueezeOut(img1, needCast, needSqueeze, dtype).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -709,8 +747,10 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor resized_crop(Tensor input, int top, int left, int height, int width, int newHeight, int newWidth)
             {
+                var scope = NewDisposeScope();
+
                 using var t0 = crop(input, top, left, height, width);
-                return resize(t0, newHeight, newWidth);
+                return resize(t0, newHeight, newWidth).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -729,10 +769,25 @@ namespace TorchSharp.torchvision
                     // Already grayscale...
                     return input.alias();
 
+                var scope = NewDisposeScope();
+
+                var dtype = input.dtype;
+
+                if (!is_floating_point(dtype)) {
+                    input = convert_image_dtype(input, torch.float32);
+                }
+
                 var rgb = input.unbind(cDim);
                 using var img = (rgb[0] * 0.2989 + rgb[1] * 0.587 + rgb[2] * 0.114).unsqueeze(cDim);
                 foreach (var c in rgb) { c.Dispose(); }
-                return num_output_channels == 3 ? img.expand(input.shape) : img.alias();
+
+                var result = num_output_channels == 3 ? img.expand(input.shape) : img.alias();
+
+                if (!is_floating_point(dtype)) {
+                    result = convert_image_dtype(result, dtype);
+                }
+
+                return result.MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -742,6 +797,8 @@ namespace TorchSharp.torchvision
             {
                 var center_f = (0.0f, 0.0f);
 
+                var scope = NewDisposeScope();
+
                 if (center.HasValue) {
                     var img_size = GetImageSize(img);
                     center_f = (1.0f * (center.Value.Item1 - img_size.Item1 * 0.5f), 1.0f * (center.Value.Item2 - img_size.Item2 * 0.5f));
@@ -749,7 +806,7 @@ namespace TorchSharp.torchvision
 
                 var matrix = GetInverseAffineMatrix(center_f, -angle, (0.0f, 0.0f), 1.0f, (0.0f, 0.0f));
 
-                return RotateImage(img, matrix, interpolation, expand, fill);
+                return RotateImage(img, matrix, interpolation, expand, fill).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -758,9 +815,11 @@ namespace TorchSharp.torchvision
             /// <returns></returns>
             public static Tensor solarize(Tensor input, double threshold)
             {
+                var scope = NewDisposeScope();
+
                 using (var inverted = invert(input))
                 using (var filter = input < threshold)
-                    return torch.where(filter, input, inverted);
+                    return torch.where(filter, input, inverted).MoveToOuterDisposeScope();
             }
 
             /// <summary>
@@ -774,6 +833,8 @@ namespace TorchSharp.torchvision
             //
             private static Tensor RotateImage(Tensor img, IList<float> matrix, InterpolationMode interpolation, bool expand, IList<float> fill)
             {
+                var scope = NewDisposeScope();
+
                 var (w, h) = GetImageSize(img);
                 var (ow, oh) = expand ? ComputeOutputSize(matrix, w, h) : (w, h);
                 var dtype = torch.is_floating_point(img) ? img.dtype : torch.float32;
@@ -781,21 +842,25 @@ namespace TorchSharp.torchvision
                 using var theta = t0.reshape(1, 2, 3);
                 using var grid = GenerateAffineGrid(theta, w, h, ow, oh);
 
-                return ApplyGridTransform(img, grid, interpolation, fill);
+                return ApplyGridTransform(img, grid, interpolation, fill).MoveToOuterDisposeScope();
             }
 
             private static Tensor Blend(Tensor img1, Tensor img2, double ratio)
             {
+                var scope = NewDisposeScope();
+
                 var bound = img1.IsIntegral() ? 255.0 : 1.0;
                 using var t0 = img1 * ratio;
                 using var t2 = img2 * (1.0 - ratio);
                 using var t3 = (t0 + t2);
                 using var t4 = t3.clamp(0, bound);
-                return t4.to(img2.dtype);
+                return t4.to(img2.dtype).MoveToOuterDisposeScope();
             }
 
             private static Tensor BlurredDegenerateImage(Tensor input)
             {
+                var scope = NewDisposeScope();
+
                 var device = input.device;
                 var dtype = input.IsIntegral() ? ScalarType.Float32 : input.dtype;
                 using var kernel = torch.ones(3, 3, device: device);
@@ -811,7 +876,7 @@ namespace TorchSharp.torchvision
                 using var result_tmp = SqueezeOut(t5, needCast, needSqueeze, out_dtype);
 
                 using var result = input.clone();
-                return result.index_put_(result_tmp, TensorIndex.Ellipsis, TensorIndex.Slice(1, -1), TensorIndex.Slice(1, -1));
+                return result.index_put_(result_tmp, TensorIndex.Ellipsis, TensorIndex.Slice(1, -1), TensorIndex.Slice(1, -1)).MoveToOuterDisposeScope();
             }
 
             private static Tensor GetGaussianKernel1d(long size, float sigma)
@@ -830,6 +895,8 @@ namespace TorchSharp.torchvision
 
             private static Tensor GetGaussianKernel2d(IList<long> kernelSize, IList<float> sigma, ScalarType dtype, torch.Device device)
             {
+                var scope = NewDisposeScope();
+
                 using var tX1 = GetGaussianKernel1d(kernelSize[0], sigma[0]);
                 using var tX2 = tX1.to(dtype, device);
                 using var kernel_X = tX2[TensorIndex.None, TensorIndex.Slice()];
@@ -838,7 +905,7 @@ namespace TorchSharp.torchvision
                 using var tY2 = tY1.to(dtype, device);
                 using var kernel_Y = tY2[TensorIndex.Slice(), TensorIndex.None];
 
-                return kernel_Y.mm(kernel_X);
+                return kernel_Y.mm(kernel_X).MoveToOuterDisposeScope();
             }
 
             // EXPORT_API(Tensor) THSVision_ApplyGridTransform(Tensor img, Tensor grid, const int8_t m, const float* fill, const int64_t fill_length);
@@ -847,6 +914,8 @@ namespace TorchSharp.torchvision
 
             private static Tensor ApplyGridTransform(Tensor img, Tensor grid, InterpolationMode mode, IList<float> fill = null)
             {
+                var scope = NewDisposeScope();
+
                 img = SqueezeIn(img, new ScalarType[] { grid.dtype }, out var needCast, out var needSqueeze, out var out_dtype);
 
                 var fillLength = (fill != null) ? fill.Count : 0;
@@ -861,7 +930,7 @@ namespace TorchSharp.torchvision
                 }
 
                 img = SqueezeOut(img, needCast, needSqueeze, out_dtype);
-                return img;
+                return img.MoveToOuterDisposeScope();
             }
 
             /* Tensor THSVision_GenerateAffineGrid(Tensor theta, const int64_t w, const int64_t h, const int64_t ow, const int64_t oh); */
@@ -980,13 +1049,14 @@ namespace TorchSharp.torchvision
 
             private static Tensor EqualizeSingleImage(Tensor img)
             {
+                var scope = NewDisposeScope();
                 var channels = new Tensor[] { img[0], img[1], img[2] };
 
                 var t0 = channels.Select(c => ScaleChannel(c)).ToList();
                 var t1 = torch.stack(t0);
                 foreach (var c in channels) { c.Dispose(); }
                 foreach (var c in t0) { c.Dispose(); }
-                return t1;
+                return t1.MoveToOuterDisposeScope();
             }
 
             /* Tensor THSVision_ScaleChannel(Tensor ic); */
@@ -1003,6 +1073,7 @@ namespace TorchSharp.torchvision
 
             internal static Tensor SqueezeIn(Tensor img, IList<ScalarType> req_dtypes, out bool needCast, out bool needSqueeze, out ScalarType dtype)
             {
+                var scope = NewDisposeScope();
                 needSqueeze = false;
 
                 if (img.Dimensions < 4) {
@@ -1024,11 +1095,12 @@ namespace TorchSharp.torchvision
                     img = img.alias();
                 }
 
-                return img;
+                return img.MoveToOuterDisposeScope();
             }
 
             internal static Tensor SqueezeOut(Tensor img, bool needCast, bool needSqueeze, ScalarType dtype)
             {
+                var scope = NewDisposeScope();
                 if (needSqueeze) {
                     img = img.squeeze(0);
                 } else {
@@ -1047,7 +1119,7 @@ namespace TorchSharp.torchvision
                     img = t1;
                 }
 
-                return img;
+                return img.MoveToOuterDisposeScope();
             }
 
             private static long MaxValue(ScalarType dtype)
