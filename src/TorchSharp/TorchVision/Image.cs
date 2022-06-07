@@ -56,19 +56,13 @@ namespace TorchSharp.torchvision
             /// <param name="format">Image format.</param>
             /// <returns>The encoded image.</returns>
             public abstract void EncodeImage(Stream stream, Tensor image, ImageFormat format);
+        }
 
         public enum ImageFormat
         {
             PNG,
             JPEG,
             UNKNOWN
-        }
-        public interface IImager
-        {
-            ImageFormat DetectFormat(byte[] image);
-            Tensor DecodeImage(byte[] image, ImageReadMode mode = ImageReadMode.UNCHANGED);
-            Tensor DecodeImage(byte[] image, ImageFormat format, ImageReadMode mode = ImageReadMode.UNCHANGED);
-            byte[] EncodeImage(Tensor image, ImageFormat format);
         }
 
         /// <summary>
