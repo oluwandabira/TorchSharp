@@ -24,7 +24,6 @@ namespace TorchSharp.Examples
 
             var img = torchvision.io.read_image(filename, torchvision.io.ImageReadMode.RGB);
 
-            // Add a batch dimension
 
             Console.WriteLine($"Image has {img.shape[0]} colour channels with dimensions {img.shape[1]}x{img.shape[2]}");
 
@@ -35,6 +34,7 @@ namespace TorchSharp.Examples
                 torchvision.transforms.Grayscale()
                 ).forward(img);
 
+            var transformed = torchvision.transforms.functional.vflip(expanded);
 
             torchvision.io.write_image(transformed, "image_transformed.jpg", torchvision.ImageFormat.Jpeg);
         }

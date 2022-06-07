@@ -11,8 +11,8 @@ namespace TorchSharp.Examples
             //CIFAR10.Main(args);
             //SequenceToSequence.Main(args);
             //TextClassification.Main(args);
-            ImageTransforms.Main(args);
-            //IOReadWrite.Main(args);
+            //ImageTransforms.Main(args);
+            IOReadWrite.Main(args);
         }
     }
 }

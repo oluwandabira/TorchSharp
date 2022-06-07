@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -55,6 +57,18 @@ namespace TorchSharp.torchvision
             /// <returns>The encoded image.</returns>
             public abstract void EncodeImage(Stream stream, Tensor image, ImageFormat format);
 
+        public enum ImageFormat
+        {
+            PNG,
+            JPEG,
+            UNKNOWN
+        }
+        public interface IImager
+        {
+            ImageFormat DetectFormat(byte[] image);
+            Tensor DecodeImage(byte[] image, ImageReadMode mode = ImageReadMode.UNCHANGED);
+            Tensor DecodeImage(byte[] image, ImageFormat format, ImageReadMode mode = ImageReadMode.UNCHANGED);
+            byte[] EncodeImage(Tensor image, ImageFormat format);
         }
 
         /// <summary>
@@ -98,7 +112,7 @@ namespace TorchSharp.torchvision
             var imgr = imager ?? DefaultImager;
             using (FileStream stream = File.Open(filename, FileMode.Open)) {
                 return imgr.DecodeImage(stream, mode);
-            }
+        }
         }
 
         /// <summary>
@@ -118,7 +132,7 @@ namespace TorchSharp.torchvision
             using (FileStream stream = File.Open(filename, FileMode.Open)) {
                 data = new byte[stream.Length];
                 await stream.ReadAsync(data, 0, data.Length);
-            }
+        }
 
             var imgr = imager ?? DefaultImager;
             return imgr.DecodeImage(data, mode);
